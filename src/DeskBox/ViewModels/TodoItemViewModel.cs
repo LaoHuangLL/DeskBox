@@ -235,8 +235,11 @@ public sealed partial class TodoItemViewModel : ObservableObject
             _recurrence = normalizedValue;
             _item.Recurrence = normalizedValue?.Clone();
             OnPropertyChanged();
-                        OnPropertyChanged(nameof(HasRecurrence));
+            OnPropertyChanged(nameof(HasRecurrence));
             OnPropertyChanged(nameof(RecurrenceMode));
+            OnPropertyChanged(nameof(HasResetTime));
+            OnPropertyChanged(nameof(ResetMinutes));
+            OnPropertyChanged(nameof(ResetTimeSummaryText));
             OnPropertyChanged(nameof(RecurrenceSummaryText));
             OnPropertyChanged(nameof(DueStatusText));
             OnPropertyChanged(nameof(MetadataRecurrenceText));
@@ -396,13 +399,37 @@ public sealed partial class TodoItemViewModel : ObservableObject
 
     public bool HasDueDate => DueDate is not null;
 
+    /// <summary>
+    /// True when completing the item schedules a reset back to the active
+    /// state instead of generating the next occurrence.
+    /// </summary>
+    public bool HasResetTime => HasRecurrence && Recurrence?.ResetMinutes is not null;
+
+    public int? ResetMinutes => Recurrence?.ResetMinutes;
+
+    public string ResetTimeSummaryText => ResetMinutes is { } resetMinutes
+        ? TodoRecurrenceService.FormatResetTime(resetMinutes)
+        : string.Empty;
+
     public bool HasActiveSnooze => SnoozedUntil is not null && DueDate is not null && !IsCompleted;
 
     public string RecurrenceMode => TodoRecurrenceMode.Normalize(Recurrence?.Mode);
 
-    public string RecurrenceSummaryText => HasRecurrence
-        ? LocalizedText(TodoRecurrenceService.GetLocalizationKey(RecurrenceMode))
-        : string.Empty;
+    public string RecurrenceSummaryText
+    {
+        get
+        {
+            if (!HasRecurrence)
+            {
+                return string.Empty;
+            }
+
+            string modeText = LocalizedText(TodoRecurrenceService.GetLocalizationKey(RecurrenceMode));
+            return HasResetTime
+                ? Format("Todo.Recurrence.WithResetTime", modeText, ResetTimeSummaryText)
+                : modeText;
+        }
+    }
 
     public string DueStatusText
     {
@@ -410,7 +437,7 @@ public sealed partial class TodoItemViewModel : ObservableObject
         {
             if (DueDate is not { } dueDate)
             {
-                return string.Empty;
+                return HasRecurrence ? RecurrenceSummaryText : string.Empty;
             }
 
             DateTimeOffset localDueDate = dueDate.ToLocalTime();
@@ -449,9 +476,11 @@ public sealed partial class TodoItemViewModel : ObservableObject
         }
     }
 
-    public Visibility DueStatusVisibility => DueDate is null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility DueStatusVisibility => DueDate is null && !HasRecurrence
+        ? Visibility.Collapsed
+        : Visibility.Visible;
 
-    public Visibility DueStatusNormalVisibility => DueDate is not null && !IsOverdue
+    public Visibility DueStatusNormalVisibility => (DueDate is not null || HasRecurrence) && !IsOverdue
         ? Visibility.Visible
         : Visibility.Collapsed;
 
@@ -531,7 +560,7 @@ public sealed partial class TodoItemViewModel : ObservableObject
         ? Visibility.Visible
         : Visibility.Collapsed;
 
-    public Visibility RecurrenceMetadataVisibility => DueDate is not null && !IsCompleted
+    public Visibility RecurrenceMetadataVisibility => !IsCompleted
         ? Visibility.Visible
         : Visibility.Collapsed;
 
@@ -574,9 +603,30 @@ public sealed partial class TodoItemViewModel : ObservableObject
         IsEditing = false;
     }
 
+    /// <summary>
+    /// Mirrors the model state after a scheduled reset flipped the item back
+    /// to the active state, so the row and detail page update without a full
+    /// reload.
+    /// </summary>
+    internal void RefreshAfterReset()
+    {
+        IsCompleted = false;
+        CompletedAt = null;
+        DueDate = _item.DueDate;
+        foreach (TodoStepViewModel step in Steps)
+        {
+            step.IsCompleted = false;
+        }
+
+        Recurrence = _item.Recurrence?.Clone();
+        RefreshLocalizedText();
+        RefreshDetailProperties();
+    }
+
     internal void RefreshLocalizedText()
     {
                 OnPropertyChanged(nameof(RecurrenceSummaryText));
+        OnPropertyChanged(nameof(ResetTimeSummaryText));
         OnPropertyChanged(nameof(DueStatusText));
         OnPropertyChanged(nameof(DueStatusNormalVisibility));
         OnPropertyChanged(nameof(DueStatusOverdueVisibility));
@@ -698,6 +748,9 @@ public sealed partial class TodoItemViewModel : ObservableObject
         string leftMode = TodoRecurrenceMode.Normalize(left?.Mode);
         string rightMode = TodoRecurrenceMode.Normalize(right?.Mode);
         return string.Equals(leftMode, rightMode, StringComparison.Ordinal) &&
-               Nullable.Equals(left?.AnchorDueDate, right?.AnchorDueDate);
+               Nullable.Equals(left?.AnchorDueDate, right?.AnchorDueDate) &&
+               Nullable.Equals(
+                   TodoRecurrence.NormalizeResetMinutes(left?.ResetMinutes),
+                   TodoRecurrence.NormalizeResetMinutes(right?.ResetMinutes));
     }
 }

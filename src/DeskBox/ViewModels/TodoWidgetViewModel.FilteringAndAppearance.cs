@@ -729,7 +729,10 @@ public sealed partial class TodoWidgetViewModel
         string leftMode = TodoRecurrenceMode.Normalize(left?.Mode);
         string rightMode = TodoRecurrenceMode.Normalize(right?.Mode);
         return string.Equals(leftMode, rightMode, StringComparison.Ordinal) &&
-               Nullable.Equals(left?.AnchorDueDate, right?.AnchorDueDate);
+               Nullable.Equals(left?.AnchorDueDate, right?.AnchorDueDate) &&
+               Nullable.Equals(
+                   TodoRecurrence.NormalizeResetMinutes(left?.ResetMinutes),
+                   TodoRecurrence.NormalizeResetMinutes(right?.ResetMinutes));
     }
 
     private static string NormalizeText(string? text)

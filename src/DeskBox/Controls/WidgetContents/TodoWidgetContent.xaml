@@ -753,7 +753,7 @@
                                 </StackPanel>
                             </Button>
 
-                            <Button x:Name="DetailRecurrenceMetadataButton" Grid.Row="1" Grid.Column="0" AutomationProperties.Name="{Binding MetadataRecurrenceText}" Click="MetadataRecurrence_Click" IsEnabled="{Binding HasDueDate}" Style="{StaticResource TodoDetailToolbarButtonStyle}" ToolTipService.ToolTip="{Binding MetadataRecurrenceText}">
+                            <Button x:Name="DetailRecurrenceMetadataButton" Grid.Row="1" Grid.Column="0" AutomationProperties.Name="{Binding MetadataRecurrenceText}" Click="MetadataRecurrence_Click" Style="{StaticResource TodoDetailToolbarButtonStyle}" ToolTipService.ToolTip="{Binding MetadataRecurrenceText}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <FontIcon FontSize="{Binding ElementName=RootGrid, Path=DataContext.SmallIconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Glyph="&#xE823;" />
                                     <TextBlock VerticalAlignment="Center" FontSize="{Binding ElementName=RootGrid, Path=DataContext.ContentSecondaryTextSize}" MaxLines="1" Text="{Binding MetadataRecurrenceText}" TextTrimming="CharacterEllipsis" />

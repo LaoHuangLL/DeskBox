@@ -1280,6 +1280,80 @@ public sealed class TodoWidgetViewModelTests : IDisposable
         Assert.Null(Assert.Single(reloaded.Items).SnoozedUntil);
     }
 
+    [Fact]
+    public async Task SetResetTimeAsync_AddsDailyResetAndPersists()
+    {
+        var viewModel = CreateViewModel("todo-widget");
+        await viewModel.InitializeAsync();
+        TodoItemViewModel item = (await viewModel.AddItemAsync("game daily"))!;
+
+        bool updated = await viewModel.SetResetTimeAsync(item.Id, 4 * 60);
+
+        Assert.True(updated);
+        Assert.True(item.HasResetTime);
+        Assert.Equal(TodoRecurrenceMode.Daily, item.RecurrenceMode);
+        Assert.Equal(4 * 60, item.ResetMinutes);
+        Assert.Equal("04:00", item.ResetTimeSummaryText);
+        TodoItem saved = Assert.Single((await CreateStore("todo-widget").LoadAsync()).Items);
+        Assert.Equal(TodoRecurrenceMode.Daily, saved.Recurrence?.Mode);
+        Assert.Equal(4 * 60, saved.Recurrence?.ResetMinutes);
+    }
+
+    [Fact]
+    public async Task SetResetTimeAsync_ClearsResetWithoutRemovingDueDate()
+    {
+        var viewModel = CreateViewModel("todo-widget");
+        await viewModel.InitializeAsync();
+        TodoItemViewModel item = (await viewModel.AddItemAsync("game daily"))!;
+        DateTimeOffset dueDate = DateTimeOffset.Now.AddHours(3);
+        await viewModel.SetDueDateAsync(item.Id, dueDate);
+        await viewModel.SetResetTimeAsync(item.Id, 4 * 60);
+
+        bool updated = await viewModel.SetResetTimeAsync(item.Id, null);
+
+        Assert.True(updated);
+        Assert.False(item.HasResetTime);
+        Assert.True(item.HasRecurrence);
+        Assert.NotNull(item.DueDate);
+        TodoItem saved = Assert.Single((await CreateStore("todo-widget").LoadAsync()).Items);
+        Assert.Null(saved.Recurrence?.ResetMinutes);
+    }
+
+    [Fact]
+    public async Task SetCompletedAsync_DoesNotSpawnOccurrenceWhenResetTimeIsSet()
+    {
+        var viewModel = CreateViewModel("todo-widget");
+        await viewModel.InitializeAsync();
+        TodoItemViewModel item = (await viewModel.AddItemAsync("game daily"))!;
+        await viewModel.SetResetTimeAsync(item.Id, 4 * 60);
+
+        await viewModel.SetCompletedAsync(item.Id, true);
+
+        Assert.True(item.IsCompleted);
+        Assert.Single(viewModel.Items);
+        Assert.Null(item.Item.GeneratedNextItemId);
+    }
+
+    [Fact]
+    public async Task ApplyDueResetsAsync_FlipsCompletedItemBackToActive()
+    {
+        var viewModel = CreateViewModel("todo-widget");
+        await viewModel.InitializeAsync();
+        TodoItemViewModel item = (await viewModel.AddItemAsync("game daily"))!;
+        await viewModel.SetResetTimeAsync(item.Id, 4 * 60);
+        await viewModel.SetCompletedAsync(item.Id, true);
+        Assert.True(item.IsCompleted);
+
+        int resetCount = await viewModel.ApplyDueResetsAsync(DateTimeOffset.Now.AddDays(1));
+
+        Assert.Equal(1, resetCount);
+        Assert.False(item.IsCompleted);
+        Assert.Equal(1, viewModel.ActiveCount);
+        TodoItem saved = Assert.Single((await CreateStore("todo-widget").LoadAsync()).Items);
+        Assert.False(saved.IsCompleted);
+        Assert.Null(saved.CompletedAt);
+    }
+
     public void Dispose()
     {
         try

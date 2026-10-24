@@ -160,6 +160,8 @@ public sealed partial class TodoWidgetContent
         flyout.Items.Add(CreateTodoContextSubmenu(
             "Todo.Menu.Recurrence", "\uE823", recurrenceMenu, flyout, item.DueDate is not null));
 
+        flyout.Items.Add(CreateResetTimeSubmenu(item, flyout, anchor));
+
         if (item.DueDate is not null &&
             !item.IsCompleted &&
             !TodoReminderOptions.IsReminderOff(item.ReminderOffsetMinutes))
@@ -292,6 +294,8 @@ public sealed partial class TodoWidgetContent
         flyout.Items.Add(CreateTodoContextSubmenu(
             "Todo.Menu.Recurrence", "\uE823", recurrenceMenu, flyout, hasDueDate));
 
+        flyout.Items.Add(CreateResetTimeSubmenu(selectedItems, selectedIds, flyout, anchor));
+
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(deleteItem);
 
@@ -409,7 +413,8 @@ public sealed partial class TodoWidgetContent
         string glyph,
         MenuFlyout submenu,
         MenuFlyout owner,
-        bool isEnabled = true)
+        bool isEnabled = true,
+        string? text = null)
     {
         foreach (var menuItem in submenu.Items.OfType<MenuFlyoutItem>())
         {
@@ -418,7 +423,7 @@ public sealed partial class TodoWidgetContent
 
         var subItem = new MenuFlyoutSubItem
         {
-            Text = App.Current.LocalizationService.T(localizationKey),
+            Text = text ?? App.Current.LocalizationService.T(localizationKey),
             Icon = new FontIcon { Glyph = glyph },
             IsEnabled = isEnabled
         };
@@ -526,6 +531,110 @@ public sealed partial class TodoWidgetContent
             }
         };
         return recurrenceItem;
+    }
+
+    private MenuFlyoutSubItem CreateResetTimeSubmenu(
+        TodoItemViewModel item,
+        MenuFlyout owner,
+        FrameworkElement anchor)
+    {
+        return CreateResetTimeSubmenu([item], [item.Id], owner, anchor);
+    }
+
+    /// <summary>
+    /// Reset-time submenu shared by the list context menu, the batch menu and
+    /// the detail metadata button. Picking a time makes the item repeat by
+    /// itself, so the entry stays enabled without a due date.
+    /// </summary>
+    private MenuFlyoutSubItem CreateResetTimeSubmenu(
+        IReadOnlyList<TodoItemViewModel> items,
+        IReadOnlyList<string> itemIds,
+        MenuFlyout owner,
+        FrameworkElement anchor)
+    {
+        var localization = App.Current.LocalizationService;
+        MenuFlyout resetMenu = CreateLazyTodoMenu(owner, menu =>
+        {
+            menu.Items.Add(CreateResetTimeItem(
+                items, itemIds, null, localization.T("Todo.ResetTime.Off"), owner));
+            menu.Items.Add(new MenuFlyoutSeparator());
+            foreach (int resetMinutes in TodoRecurrenceService.SupportedResetTimes)
+            {
+                menu.Items.Add(CreateResetTimeItem(
+                    items,
+                    itemIds,
+                    resetMinutes,
+                    TodoRecurrenceService.FormatResetTime(resetMinutes),
+                    owner));
+            }
+
+            menu.Items.Add(new MenuFlyoutSeparator());
+            var customItem = new MenuFlyoutItem
+            {
+                Text = localization.T("Todo.ResetTime.Custom"),
+                Icon = new FontIcon { Glyph = "\uE8A5" }
+            };
+            customItem.Click += (_, _) =>
+            {
+                owner.Hide();
+                int initialMinutes =
+                    GetSharedResetMinutes(items) ?? TodoRecurrenceService.DefaultResetMinutes;
+                ShowCustomResetTimePicker(itemIds, initialMinutes, anchor);
+            };
+            menu.Items.Add(customItem);
+        });
+
+        int? sharedResetMinutes = GetSharedResetMinutes(items);
+        string? text = sharedResetMinutes is { } value
+            ? localization.Format(
+                "Todo.Recurrence.WithResetTime",
+                localization.T("Todo.Menu.ResetTime"),
+                TodoRecurrenceService.FormatResetTime(value))
+            : null;
+        return CreateTodoContextSubmenu(
+            "Todo.Menu.ResetTime", "\uE916", resetMenu, owner, text: text);
+    }
+
+    private MenuFlyoutItem CreateResetTimeItem(
+        IReadOnlyList<TodoItemViewModel> items,
+        IReadOnlyList<string> itemIds,
+        int? resetMinutes,
+        string text,
+        MenuFlyout owner)
+    {
+        int? normalizedResetMinutes = TodoRecurrence.NormalizeResetMinutes(resetMinutes);
+        bool isSelected = items.Count > 0 &&
+                          items.All(item => Nullable.Equals(item.ResetMinutes, normalizedResetMinutes));
+        var menuItem = new MenuFlyoutItem
+        {
+            Text = text,
+            Icon = isSelected
+                ? new FontIcon { Glyph = "\uE73E" }
+                : normalizedResetMinutes is null
+                    ? new FontIcon { Glyph = "\uE711" }
+                    : null
+        };
+        menuItem.Click += async (_, _) =>
+        {
+            owner.Hide();
+            if (ViewModel is not null)
+            {
+                await ViewModel.SetResetTimeAsync(itemIds, normalizedResetMinutes);
+            }
+        };
+        return menuItem;
+    }
+
+    private static int? GetSharedResetMinutes(IReadOnlyList<TodoItemViewModel> items)
+    {
+        if (items.Count == 0 || items[0].ResetMinutes is not { } firstResetMinutes)
+        {
+            return null;
+        }
+
+        return items.All(item => Nullable.Equals(item.ResetMinutes, firstResetMinutes))
+            ? firstResetMinutes
+            : null;
     }
 
     private MenuFlyoutItem CreateReminderOffsetItem(TodoItemViewModel item, int? offsetMinutes)

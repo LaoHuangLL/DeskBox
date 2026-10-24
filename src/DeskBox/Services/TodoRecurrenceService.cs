@@ -4,6 +4,19 @@ namespace DeskBox.Services;
 
 public static class TodoRecurrenceService
 {
+    private const int MaxResetSearchDays = 400;
+
+    public const int DefaultResetMinutes = 4 * 60;
+
+    /// <summary>
+    /// Reset times offered in the pickers. Game dailies cluster around these
+    /// local wall-clock moments; anything else is reachable through the custom
+    /// time picker.
+    /// </summary>
+    public static IReadOnlyList<int> SupportedResetTimes { get; } =
+        [0, 4 * 60, 5 * 60, 6 * 60, 12 * 60, 20 * 60];
+
+
     public static bool IsRecurring(TodoItem item)
     {
         return item.DueDate is not null &&
@@ -14,15 +27,16 @@ public static class TodoRecurrenceService
                    StringComparison.Ordinal);
     }
 
-    public static TodoRecurrence? CreateRecurrence(string? mode, DateTimeOffset? dueDate)
+    public static TodoRecurrence? CreateRecurrence(string? mode, DateTimeOffset? dueDate, int? resetMinutes = null)
     {
-        if (dueDate is not { } normalizedDueDate)
+        string normalizedMode = TodoRecurrenceMode.Normalize(mode);
+        if (string.Equals(normalizedMode, TodoRecurrenceMode.None, StringComparison.Ordinal))
         {
             return null;
         }
 
-        string normalizedMode = TodoRecurrenceMode.Normalize(mode);
-        if (string.Equals(normalizedMode, TodoRecurrenceMode.None, StringComparison.Ordinal))
+        int? normalizedResetMinutes = TodoRecurrence.NormalizeResetMinutes(resetMinutes);
+        if (dueDate is null && normalizedResetMinutes is null)
         {
             return null;
         }
@@ -30,7 +44,136 @@ public static class TodoRecurrenceService
         return new TodoRecurrence
         {
             Mode = normalizedMode,
-            AnchorDueDate = normalizedDueDate
+            AnchorDueDate = dueDate,
+            ResetMinutes = normalizedResetMinutes
+        };
+    }
+
+    /// <summary>
+    /// True when the item repeats without spawning new occurrences: completion
+    /// only marks the record done, and the reset schedule flips it back.
+    /// </summary>
+    public static bool HasResetTime(TodoItem item)
+    {
+        return item.Recurrence is not null &&
+               item.Recurrence.ResetMinutes is not null &&
+               !string.Equals(
+                   TodoRecurrenceMode.Normalize(item.Recurrence.Mode),
+                   TodoRecurrenceMode.None,
+                   StringComparison.Ordinal);
+    }
+
+    public static string FormatResetTime(int resetMinutes)
+    {
+        int normalized = TodoRecurrence.NormalizeResetMinutes(resetMinutes) ?? 0;
+        return $"{normalized / 60:00}:{normalized % 60:00}";
+    }
+
+    /// <summary>
+    /// First reset moment strictly after <paramref name="after"/> for the
+    /// item's schedule. Every supported mode fires at the same local
+    /// wall-clock time; weekly/monthly/weekday modes additionally restrict the
+    /// days that fire.
+    /// </summary>
+    public static bool TryGetNextResetAt(TodoItem item, DateTimeOffset after, out DateTimeOffset resetAt)
+    {
+        resetAt = default;
+        if (!HasResetTime(item) || item.Recurrence is not { } recurrence)
+        {
+            return false;
+        }
+
+        int resetMinutes = recurrence.ResetMinutes!.Value;
+        string mode = TodoRecurrenceMode.Normalize(recurrence.Mode);
+        DateTime anchorDate = (recurrence.AnchorDueDate ?? item.DueDate ?? item.CreatedAt).ToLocalTime().Date;
+        DateTime firstDay = after.ToLocalTime().Date;
+        for (int dayOffset = 0; dayOffset <= MaxResetSearchDays; dayOffset++)
+        {
+            DateTime day = firstDay.AddDays(dayOffset);
+            if (!IsResetDay(mode, day, anchorDate))
+            {
+                continue;
+            }
+
+            DateTime localInstant = day.AddMinutes(resetMinutes);
+            var candidate = new DateTimeOffset(localInstant);
+            if (candidate <= after)
+            {
+                continue;
+            }
+
+            resetAt = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Applies the reset schedule to a completed item: when the next reset
+    /// moment after its completion already passed, the item returns to the
+    /// active state so the same record tracks the next day instead of spawning
+    /// a new item. Returns true when the item changed.
+    /// </summary>
+    public static bool TryApplyReset(TodoItem item, DateTimeOffset now)
+    {
+        if (!item.IsCompleted || !HasResetTime(item))
+        {
+            return false;
+        }
+
+        DateTimeOffset completedAt = item.CompletedAt ?? item.UpdatedAt;
+        if (completedAt == default)
+        {
+            completedAt = now;
+        }
+
+        if (!TryGetNextResetAt(item, completedAt, out DateTimeOffset resetAt) || resetAt > now)
+        {
+            return false;
+        }
+
+        ApplyReset(item, resetAt, now);
+        return true;
+    }
+
+    private static void ApplyReset(TodoItem item, DateTimeOffset resetAt, DateTimeOffset now)
+    {
+        if (IsRecurring(item) &&
+            item.DueDate is { } dueDate &&
+            dueDate < resetAt &&
+            TryGetNextDueDate(item, resetAt, out DateTimeOffset nextDueDate))
+        {
+            item.DueDate = nextDueDate;
+            if (item.Recurrence is not null)
+            {
+                item.Recurrence.AnchorDueDate = nextDueDate;
+            }
+        }
+
+        item.IsCompleted = false;
+        item.CompletedAt = null;
+        item.GeneratedNextItemId = null;
+        item.ReminderLastNotifiedAt = null;
+        item.ReminderDismissedForDueDate = null;
+        item.SnoozedUntil = null;
+        item.SnoozeLastNotifiedAt = null;
+        foreach (TodoStep step in item.Steps)
+        {
+            step.IsCompleted = false;
+        }
+
+        item.UpdatedAt = now;
+    }
+
+    private static bool IsResetDay(string mode, DateTime day, DateTime anchorDate)
+    {
+        return mode switch
+        {
+            TodoRecurrenceMode.Weekdays => !IsWeekend(day.DayOfWeek),
+            TodoRecurrenceMode.Weekly => day.DayOfWeek == anchorDate.DayOfWeek,
+            TodoRecurrenceMode.Monthly => day.Day == Math.Min(anchorDate.Day, DateTime.DaysInMonth(day.Year, day.Month)),
+            _ => true
         };
     }
 
@@ -49,6 +192,14 @@ public static class TodoRecurrenceService
     public static bool TryCreateNextOccurrence(TodoItem sourceItem, DateTimeOffset completedAt, out TodoItem? nextItem)
     {
         nextItem = null;
+        if (HasResetTime(sourceItem))
+        {
+            // Items with a reset schedule reuse the same record: completing
+            // them only marks the current period done, and the reset schedule
+            // flips the item back to the active state.
+            return false;
+        }
+
         if (!TryGetNextDueDate(sourceItem, completedAt, out DateTimeOffset nextDueDate))
         {
             return false;
@@ -178,7 +329,10 @@ public static class TodoRecurrenceService
             return true;
         }
 
-        return Nullable.Equals(left?.AnchorDueDate, right?.AnchorDueDate);
+        return Nullable.Equals(left?.AnchorDueDate, right?.AnchorDueDate) &&
+               Nullable.Equals(
+                   TodoRecurrence.NormalizeResetMinutes(left?.ResetMinutes),
+                   TodoRecurrence.NormalizeResetMinutes(right?.ResetMinutes));
     }
 
     private static DateTimeOffset AdvanceByFixedDays(

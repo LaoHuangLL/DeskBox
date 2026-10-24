@@ -32,6 +32,10 @@ public sealed partial class TodoWidgetViewModel
         RefreshVisibleItems();
         RefreshCountProperties();
         IsInitialized = true;
+
+        // Catch up on reset schedules that elapsed while the app was closed
+        // before the first frame renders the list.
+        await ApplyDueResetsAsync(DateTimeOffset.UtcNow);
     }
 
     public async Task<TodoItemViewModel?> AddInputAsync()
@@ -436,15 +440,20 @@ public sealed partial class TodoWidgetViewModel
         }
 
         string normalizedMode = TodoRecurrenceMode.Normalize(mode);
-        TodoRecurrence? recurrence = TodoRecurrenceService.CreateRecurrence(normalizedMode, item.DueDate);
+        if (!string.Equals(normalizedMode, TodoRecurrenceMode.None, StringComparison.Ordinal) &&
+            item.DueDate is null &&
+            item.ResetMinutes is null)
+        {
+            return false;
+        }
+
+        TodoRecurrence? recurrence = TodoRecurrenceService.CreateRecurrence(
+            normalizedMode,
+            item.DueDate,
+            item.ResetMinutes);
         if (AreRecurrenceEqual(item.Recurrence, recurrence))
         {
             return true;
-        }
-
-        if (item.DueDate is null && recurrence is not null)
-        {
-            return false;
         }
 
         item.Recurrence = recurrence;
@@ -478,12 +487,17 @@ public sealed partial class TodoWidgetViewModel
         int updatedCount = 0;
         foreach (var item in Items.Where(item => selectedIds.Contains(item.Id)))
         {
-            TodoRecurrence? recurrence = TodoRecurrenceService.CreateRecurrence(normalizedMode, item.DueDate);
-            if (item.DueDate is null && recurrence is not null)
+            if (!string.Equals(normalizedMode, TodoRecurrenceMode.None, StringComparison.Ordinal) &&
+                item.DueDate is null &&
+                item.ResetMinutes is null)
             {
                 continue;
             }
 
+            TodoRecurrence? recurrence = TodoRecurrenceService.CreateRecurrence(
+                normalizedMode,
+                item.DueDate,
+                item.ResetMinutes);
             if (AreRecurrenceEqual(item.Recurrence, recurrence))
             {
                 continue;
@@ -510,6 +524,110 @@ public sealed partial class TodoWidgetViewModel
         }
 
         return updatedCount;
+    }
+
+    public async Task<bool> SetResetTimeAsync(string itemId, int? resetMinutes)
+    {
+        var item = FindItem(itemId);
+        if (item is null)
+        {
+            return false;
+        }
+
+        await ApplyResetTimeAsync([item], resetMinutes);
+        return true;
+    }
+
+    public async Task<int> SetResetTimeAsync(IEnumerable<string> itemIds, int? resetMinutes)
+    {
+        var selectedIds = itemIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+        if (selectedIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var targets = Items.Where(item => selectedIds.Contains(item.Id)).ToList();
+        if (targets.Count == 0 &&
+            IsCreatingDetailItem &&
+            SelectedDetailItem is { } draft &&
+            selectedIds.Contains(draft.Id))
+        {
+            // The detail page can edit an item that has not been inserted yet.
+            targets.Add(draft);
+        }
+
+        return await ApplyResetTimeAsync(targets, resetMinutes);
+    }
+
+    private async Task<int> ApplyResetTimeAsync(
+        IReadOnlyList<TodoItemViewModel> targets,
+        int? resetMinutes)
+    {
+        int? normalizedResetMinutes = TodoRecurrence.NormalizeResetMinutes(resetMinutes);
+        var now = DateTimeOffset.UtcNow;
+        int updatedCount = 0;
+        foreach (var item in targets)
+        {
+            TodoRecurrence? updated = BuildRecurrenceWithResetTime(item, normalizedResetMinutes);
+            if (updated is null && item.Recurrence is null)
+            {
+                continue;
+            }
+
+            if (AreRecurrenceEqual(item.Recurrence, updated))
+            {
+                continue;
+            }
+
+            item.Recurrence = updated;
+            item.RecurrenceSeriesId = updated is null
+                ? null
+                : item.RecurrenceSeriesId ?? Guid.NewGuid().ToString("N");
+            item.Item.GeneratedNextItemId = null;
+            item.Item.ReminderLastNotifiedAt = null;
+            item.Item.ReminderDismissedForDueDate = null;
+            item.SnoozedUntil = null;
+            item.Item.SnoozeLastNotifiedAt = null;
+            item.UpdatedAt = now;
+            updatedCount++;
+        }
+
+        if (updatedCount > 0)
+        {
+            RefreshVisibleItems();
+            RefreshCountProperties();
+            await SaveAsync();
+        }
+
+        return updatedCount;
+    }
+
+    private static TodoRecurrence? BuildRecurrenceWithResetTime(
+        TodoItemViewModel item,
+        int? resetMinutes)
+    {
+        if (resetMinutes is null)
+        {
+            if (item.Recurrence is null)
+            {
+                return null;
+            }
+
+            TodoRecurrence cleared = item.Recurrence.Clone();
+            cleared.ResetMinutes = null;
+            // Without a reset time the item only stays repeating when a due
+            // date still anchors it.
+            return TodoRecurrence.Normalize(cleared, item.DueDate);
+        }
+
+        // Picking a reset time is enough to make the item repeat: fall back to
+        // a daily schedule when no mode was chosen yet.
+        string mode = string.Equals(item.RecurrenceMode, TodoRecurrenceMode.None, StringComparison.Ordinal)
+            ? TodoRecurrenceMode.Daily
+            : item.RecurrenceMode;
+        return TodoRecurrenceService.CreateRecurrence(mode, item.DueDate, resetMinutes);
     }
 
     public async Task<bool> SetReminderOffsetAsync(string itemId, int? offsetMinutes)

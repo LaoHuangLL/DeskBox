@@ -451,6 +451,16 @@ public sealed class TodoReminderService : IDisposable, ITodoReminderSession
         }
         bool changed = false;
 
+        // Reset schedules must fire even when the todo widget is not on screen,
+        // otherwise a completed daily stays checked until the widget reloads.
+        foreach (var item in data.Items)
+        {
+            if (TodoRecurrenceService.TryApplyReset(item, now))
+            {
+                changed = true;
+            }
+        }
+
         foreach (var item in data.Items)
         {
             if (!TryGetReminderTrigger(item, now, defaultOffsetMinutes, out ReminderTriggerKind triggerKind, out int? effectiveOffsetMinutes))

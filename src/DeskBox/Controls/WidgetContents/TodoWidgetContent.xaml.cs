@@ -79,6 +79,7 @@ public sealed partial class TodoWidgetContent : UserControl
     {
         InitializeComponent();
         InitializeDetailNotesAndSteps();
+        InitializeResetSchedule();
         DetailTitleTextBox.AddHandler(
             UIElement.PreviewKeyDownEvent,
             new KeyEventHandler(DetailTitleTextBox_KeyDown),
@@ -172,11 +173,13 @@ public sealed partial class TodoWidgetContent : UserControl
         ApplyMasterDetailLayout(ActualWidth);
         QueueDetailTitleHeightUpdate();
         QueueTodoSegmentedRestore();
+        StartResetSchedule();
     }
 
     private void TodoWidgetContent_Unloaded(object sender, RoutedEventArgs e)
     {
         CancelTodoSegmentedRestore();
+        StopResetSchedule();
         if (ViewModel is not null)
         {
             ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
@@ -724,6 +727,9 @@ public sealed partial class TodoWidgetContent : UserControl
         {
             flyout.Items.Add(CreateRecurrenceItem(item, recurrenceMode));
         }
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(CreateResetTimeSubmenu(item, flyout, button));
 
         flyout.ShowAt(button, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
     }

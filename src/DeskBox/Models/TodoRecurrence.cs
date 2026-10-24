@@ -33,13 +33,23 @@ public static class TodoRecurrenceMode
 
 public sealed class TodoRecurrence
 {
+    public const int MinutesPerDay = 24 * 60;
+
     public string Mode { get; set; } = TodoRecurrenceMode.None;
 
     public DateTimeOffset? AnchorDueDate { get; set; }
 
+    /// <summary>
+    /// Local wall-clock time of day, in minutes after midnight, at which a
+    /// completed repeating item switches back to the active state. Null keeps
+    /// the classic behavior: completing the item generates the next
+    /// occurrence instead of resetting the same record.
+    /// </summary>
+    public int? ResetMinutes { get; set; }
+
     public static TodoRecurrence? Normalize(TodoRecurrence? recurrence, DateTimeOffset? dueDate)
     {
-        if (dueDate is not { } normalizedDueDate || recurrence is null)
+        if (recurrence is null)
         {
             return null;
         }
@@ -50,8 +60,17 @@ public sealed class TodoRecurrence
             return null;
         }
 
+        int? resetMinutes = NormalizeResetMinutes(recurrence.ResetMinutes);
+        if (dueDate is null && resetMinutes is null)
+        {
+            // A repeating item needs at least one schedule signal: a due date
+            // or a daily reset time.
+            return null;
+        }
+
         recurrence.Mode = normalizedMode;
-        recurrence.AnchorDueDate = NormalizeDueDate(recurrence.AnchorDueDate) ?? normalizedDueDate;
+        recurrence.ResetMinutes = resetMinutes;
+        recurrence.AnchorDueDate = NormalizeDueDate(recurrence.AnchorDueDate) ?? dueDate;
         return recurrence;
     }
 
@@ -60,8 +79,19 @@ public sealed class TodoRecurrence
         return new TodoRecurrence
         {
             Mode = TodoRecurrenceMode.Normalize(Mode),
-            AnchorDueDate = NormalizeDueDate(AnchorDueDate)
+            AnchorDueDate = NormalizeDueDate(AnchorDueDate),
+            ResetMinutes = NormalizeResetMinutes(ResetMinutes)
         };
+    }
+
+    public static int? NormalizeResetMinutes(int? resetMinutes)
+    {
+        if (resetMinutes is not { } value)
+        {
+            return null;
+        }
+
+        return Math.Clamp(value, 0, MinutesPerDay - 1);
     }
 
     private static DateTimeOffset? NormalizeDueDate(DateTimeOffset? dueDate)

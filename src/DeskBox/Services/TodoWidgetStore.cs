@@ -136,8 +136,15 @@ public sealed class TodoWidgetStore
 
             if (item.DueDate is null)
             {
-                item.Recurrence = null;
-                item.RecurrenceSeriesId = null;
+                // A repeat schedule may exist purely as a reset time (daily
+                // game resets without a due date), so only drop recurrence
+                // state when there is no reset schedule either.
+                if (!TodoRecurrenceService.HasResetTime(item))
+                {
+                    item.Recurrence = null;
+                    item.RecurrenceSeriesId = null;
+                }
+
                 item.ReminderLastNotifiedAt = null;
                 item.ReminderDismissedForDueDate = null;
                 item.SnoozedUntil = null;
@@ -157,7 +164,7 @@ public sealed class TodoWidgetStore
                 item.SnoozeLastNotifiedAt = null;
             }
 
-            if (!item.IsCompleted || item.Recurrence is null)
+            if (!item.IsCompleted || item.Recurrence is null || TodoRecurrenceService.HasResetTime(item))
             {
                 item.GeneratedNextItemId = null;
             }

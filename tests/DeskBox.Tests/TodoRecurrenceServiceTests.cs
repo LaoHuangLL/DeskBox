@@ -94,6 +94,103 @@ public sealed class TodoRecurrenceServiceTests
             });
     }
 
+    [Fact]
+    public void TryGetNextResetAt_DailyResetUsesLocalWallClockTime()
+    {
+        var dueDate = new DateTimeOffset(new DateTime(2026, 7, 5, 9, 0, 0, DateTimeKind.Local));
+        TodoItem item = CreateRecurringItem(TodoRecurrenceMode.Daily, dueDate);
+        item.Recurrence!.ResetMinutes = 4 * 60;
+        var after = new DateTimeOffset(new DateTime(2026, 7, 5, 5, 0, 0, DateTimeKind.Local));
+
+        bool found = TodoRecurrenceService.TryGetNextResetAt(item, after, out DateTimeOffset resetAt);
+
+        Assert.True(found);
+        Assert.Equal(new DateTime(2026, 7, 6, 4, 0, 0), resetAt.LocalDateTime);
+    }
+
+    [Fact]
+    public void TryGetNextResetAt_WeeklyResetFiresOnlyOnAnchorWeekday()
+    {
+        var dueDate = new DateTimeOffset(new DateTime(2026, 7, 6, 9, 0, 0, DateTimeKind.Local));
+        TodoItem item = CreateRecurringItem(TodoRecurrenceMode.Weekly, dueDate);
+        item.Recurrence!.ResetMinutes = 0;
+        var after = new DateTimeOffset(new DateTime(2026, 7, 6, 12, 0, 0, DateTimeKind.Local));
+
+        bool found = TodoRecurrenceService.TryGetNextResetAt(item, after, out DateTimeOffset resetAt);
+
+        Assert.True(found);
+        Assert.Equal(DayOfWeek.Monday, resetAt.DayOfWeek);
+        Assert.Equal(new DateTime(2026, 7, 13, 0, 0, 0), resetAt.LocalDateTime);
+    }
+
+    [Fact]
+    public void TryGetNextResetAt_MonthlyResetClampsAnchorDay()
+    {
+        var anchorDueDate = new DateTimeOffset(new DateTime(2026, 1, 31, 9, 0, 0, DateTimeKind.Local));
+        TodoItem item = CreateRecurringItem(TodoRecurrenceMode.Monthly, anchorDueDate, anchorDueDate);
+        item.Recurrence!.ResetMinutes = 4 * 60;
+        var after = new DateTimeOffset(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Local));
+
+        bool found = TodoRecurrenceService.TryGetNextResetAt(item, after, out DateTimeOffset resetAt);
+
+        Assert.True(found);
+        Assert.Equal(new DateTime(2026, 2, 28, 4, 0, 0), resetAt.LocalDateTime);
+    }
+
+    [Fact]
+    public void TryApplyReset_ReturnsCompletedItemToActiveAndAdvancesDueDate()
+    {
+        var dueDate = new DateTimeOffset(new DateTime(2026, 7, 5, 9, 0, 0, DateTimeKind.Local));
+        TodoItem item = CreateRecurringItem(TodoRecurrenceMode.Daily, dueDate);
+        item.Recurrence!.ResetMinutes = 4 * 60;
+        item.IsCompleted = true;
+        item.CompletedAt = new DateTimeOffset(new DateTime(2026, 7, 5, 9, 30, 0, DateTimeKind.Local));
+        item.Steps =
+        [
+            new TodoStep { Text = "first", IsCompleted = true, SortOrder = 0 },
+            new TodoStep { Text = "second", IsCompleted = true, SortOrder = 1 }
+        ];
+        var now = new DateTimeOffset(new DateTime(2026, 7, 6, 4, 5, 0, DateTimeKind.Local));
+
+        bool reset = TodoRecurrenceService.TryApplyReset(item, now);
+
+        Assert.True(reset);
+        Assert.False(item.IsCompleted);
+        Assert.Null(item.CompletedAt);
+        Assert.Equal(new DateTime(2026, 7, 6, 9, 0, 0), item.DueDate!.Value.LocalDateTime);
+        Assert.All(item.Steps, step => Assert.False(step.IsCompleted));
+    }
+
+    [Fact]
+    public void TryApplyReset_KeepsItemCompletedBeforeResetMoment()
+    {
+        var dueDate = new DateTimeOffset(new DateTime(2026, 7, 5, 9, 0, 0, DateTimeKind.Local));
+        TodoItem item = CreateRecurringItem(TodoRecurrenceMode.Daily, dueDate);
+        item.Recurrence!.ResetMinutes = 4 * 60;
+        item.IsCompleted = true;
+        item.CompletedAt = new DateTimeOffset(new DateTime(2026, 7, 5, 9, 30, 0, DateTimeKind.Local));
+        var justBeforeReset = new DateTimeOffset(new DateTime(2026, 7, 6, 3, 59, 0, DateTimeKind.Local));
+
+        bool reset = TodoRecurrenceService.TryApplyReset(item, justBeforeReset);
+
+        Assert.False(reset);
+        Assert.True(item.IsCompleted);
+    }
+
+    [Fact]
+    public void TryCreateNextOccurrence_SkipsItemsWithResetTime()
+    {
+        var dueDate = new DateTimeOffset(new DateTime(2026, 7, 10, 9, 0, 0, DateTimeKind.Local));
+        TodoItem item = CreateRecurringItem(TodoRecurrenceMode.Daily, dueDate);
+        item.Recurrence!.ResetMinutes = 4 * 60;
+        var completedAt = new DateTimeOffset(new DateTime(2026, 7, 10, 9, 30, 0, DateTimeKind.Local));
+
+        bool created = TodoRecurrenceService.TryCreateNextOccurrence(item, completedAt, out TodoItem? nextItem);
+
+        Assert.False(created);
+        Assert.Null(nextItem);
+    }
+
     private static TodoItem CreateRecurringItem(string recurrenceMode, DateTimeOffset dueDate, DateTimeOffset? anchorDueDate = null)
     {
         return new TodoItem
