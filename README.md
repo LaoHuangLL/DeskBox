@@ -79,6 +79,7 @@ Every release publishes a matching `.sha256` sidecar for each installer. Code si
 
 - Work in responsive Todo and Quick Capture list/detail layouts that switch between single- and dual-pane modes, with an adjustable master pane on wide widgets.
 - Track tasks with due dates, reminders, recurrence, color markers, Markdown notes, multi-item attachments, filters, and batch actions.
+- Give any repeating task its own reset time (for example 04:00): completing it no longer creates the next copy — at that wall-clock time the same task returns to active, with steps cleared and the due date moved on, so routines that refresh at different hours each reset on their own schedule.
 - Save reusable text, links, images, and files in Quick Capture with pinning, paper styles, Markdown editing and preview, removable attachments, and focused editing.
 - Keep attachment files linked to their original location or copy them into DeskBox-managed storage.
 

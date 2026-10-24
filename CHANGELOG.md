@@ -1,5 +1,19 @@
 # Changelog
 
+## 未发布 - 2026-10-25
+
+### English
+
+#### New features
+
+- **Repeating todos can reset on their own schedule.** A repeating task can carry its own reset time — the common 00:00/04:00/05:00/06:00/12:00/20:00 presets, or any time you pick. Completing it no longer spawns the next occurrence: at the reset moment the same task returns to active, with steps unchecked, reminder and snooze state cleared, and the due date advanced to the next cycle, so several games or routines whose daily refresh happens at different hours each reset on their own. The reset time shows in the list row (for example "每日 · 04:00") and can be set from an item's right-click menu or the detail page's recurrence menu, one item at a time or for a whole selection; items you did not complete stay untouched.
+
+### 中文
+
+#### 新功能
+
+- **重复待办可以按自己的节奏重置。** 重复待办可单独指定重置时间——常用预设 00:00/04:00/05:00/06:00/12:00/20:00，也可自选任意时刻。勾选完成后不再派生下一条：到重置时刻，同一条自动从「已完成」回到「未完成」，步骤全部取消勾选、提醒与稍后提醒状态清空、到期日顺延到下一个周期，因此刷新时间各不相同的多个游戏日常可以各按各的节奏重置。列表行会显示该时间（例如「每日 · 04:00」）；可在待办右键菜单或详情页「重复」菜单中设置，支持单条与多选批量；未勾选完成的条目不重置。
+
 ## 1.5.9 - 2026-10-23
 
 ### English
