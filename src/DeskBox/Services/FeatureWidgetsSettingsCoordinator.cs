@@ -200,9 +200,7 @@ public sealed class FeatureWidgetsSettingsCoordinator : IFeatureWidgetsSettings
     {
         ThrowIfStopped();
         WeatherSettingsSlice weather = _settings.Settings.Weather;
-        string normalized = source == SettingsService.WeatherDataSourceOpenMeteo
-            ? SettingsService.WeatherDataSourceOpenMeteo
-            : SettingsService.WeatherDataSourceMsn;
+        string normalized = WeatherOptionKinds.NormalizeDataSource(source);
         if (string.Equals(weather.WeatherDataSource, normalized, StringComparison.Ordinal))
         {
             return false;

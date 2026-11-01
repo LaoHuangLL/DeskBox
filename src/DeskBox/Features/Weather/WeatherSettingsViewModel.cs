@@ -59,11 +59,7 @@ public sealed partial class WeatherSettingsViewModel : ObservableObject
 
     private static readonly string[] IconStyleValues = WeatherOptionKinds.IconStyleValues;
 
-    private static readonly string[] DataSourceValues =
-    [
-        WeatherOptionKinds.DataSourceMsn,
-        WeatherOptionKinds.DataSourceOpenMeteo
-    ];
+    private static readonly string[] DataSourceValues = WeatherOptionKinds.DataSourceValues;
 
     private readonly IFeatureWidgetsSettings _settings;
     private readonly Func<string, string> _localize;
@@ -713,6 +709,7 @@ public sealed partial class WeatherSettingsViewModel : ObservableObject
     private string GetDataSourceDisplayName(string source) => source switch
     {
         WeatherOptionKinds.DataSourceOpenMeteo => _localize("Weather.DataSource.OpenMeteo"),
+        WeatherOptionKinds.DataSourceMoji => _localize("Weather.DataSource.Moji"),
         _ => _localize("Weather.DataSource.MSN")
     };
 

@@ -465,7 +465,7 @@ public sealed partial class WeatherWidgetViewModel
                 Description = WeatherCodeMapper.GetDescription(wmoCode, _localizationService),
                 TempMaxText = FormatTemperature(tempMax),
                 TempMinText = FormatTemperature(tempMin),
-                PrecipitationText = $"{(int)precipProb}%",
+                PrecipitationText = precipProb > 0 ? $"{(int)precipProb}%" : string.Empty,
                 TempBarOffset = barOffset,
                 TempBarWidth = barWidth
             });

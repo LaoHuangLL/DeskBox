@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -365,6 +365,7 @@ public const string WeatherIconStyleLine = WeatherOptionKinds.IconStyleLine;
 public const string WeatherIconStyleFluent = WeatherOptionKinds.IconStyleFluent;
 public const string WeatherDataSourceMsn = WeatherOptionKinds.DataSourceMsn;
 public const string WeatherDataSourceOpenMeteo = WeatherOptionKinds.DataSourceOpenMeteo;
+public const string WeatherDataSourceMoji = WeatherOptionKinds.DataSourceMoji;
 public const int WeatherRefreshMinMinutes = WeatherOptionKinds.RefreshMinMinutes;
 public const int WeatherRefreshMaxMinutes = WeatherOptionKinds.RefreshMaxMinutes;
 public const int DefaultSearchMaxResults = 100;
@@ -3472,9 +3473,7 @@ settings.FocusClickedWidgetOnRaise = false;
             changed = true;
         }
 
-        string normalizedDataSource = settings.WeatherDataSource is WeatherDataSourceOpenMeteo
-            ? WeatherDataSourceOpenMeteo
-            : WeatherDataSourceMsn;
+        string normalizedDataSource = WeatherOptionKinds.NormalizeDataSource(settings.WeatherDataSource);
         if (!string.Equals(settings.WeatherDataSource, normalizedDataSource, StringComparison.Ordinal))
         {
             settings.WeatherDataSource = normalizedDataSource;

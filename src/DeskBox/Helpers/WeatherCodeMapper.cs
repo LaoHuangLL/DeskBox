@@ -158,6 +158,8 @@ public static class WeatherCodeMapper
             // Rain
             "中雨" or "Moderate rain" => 63,
             "大雨" or "Heavy rain" => 65,
+            // Bare "雨" / "雪" appear in moji.com's calendar rows.
+            "雨" or "Rain" => 61,
             "暴雨" or "Torrential rain" or "Very heavy rain" => 65,
             "阵雨" or "Rain showers" or "Showers" or "Scattered showers" => 80,
             "强阵雨" or "Heavy rain showers" or "Heavy showers" => 82,
@@ -169,6 +171,7 @@ public static class WeatherCodeMapper
             "小雪" or "Light snow" => 71,
             "中雪" or "Moderate snow" => 73,
             "大雪" or "Heavy snow" => 75,
+            "雪" or "Snow" => 71,
             "阵雪" or "Snow showers" => 85,
             "强阵雪" or "Heavy snow showers" => 86,
             "雨夹雪" or "Sleet" or "Rain and snow" => 77,

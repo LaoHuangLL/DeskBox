@@ -165,9 +165,12 @@ public sealed class WeatherService : IDisposable
             cancellationToken);
         if (data is null)
         {
-            string fallbackSource = sourceKey == SettingsService.WeatherDataSourceMsn
-                ? SettingsService.WeatherDataSourceOpenMeteo
-                : SettingsService.WeatherDataSourceMsn;
+            string fallbackSource = sourceKey switch
+            {
+                SettingsService.WeatherDataSourceMsn => SettingsService.WeatherDataSourceOpenMeteo,
+                SettingsService.WeatherDataSourceOpenMeteo => SettingsService.WeatherDataSourceMsn,
+                _ => SettingsService.WeatherDataSourceOpenMeteo
+            };
             App.Log($"[WeatherService] Primary source '{sourceKey}' failed, trying fallback '{fallbackSource}'");
             actualSource = fallbackSource;
             data = await FetchFromSourceAsync(
@@ -349,9 +352,14 @@ public sealed class WeatherService : IDisposable
     {
         try
         {
-            return source == SettingsService.WeatherDataSourceMsn
-                ? await FetchMsnWeatherAsync(lat, lon, cancellationToken)
-                : await FetchOpenMeteoWeatherAsync(lat, lon, cancellationToken);
+            return source switch
+            {
+                SettingsService.WeatherDataSourceMoji =>
+                    await MojiWeatherService.FetchAsync(lat, lon, cancellationToken),
+                SettingsService.WeatherDataSourceMsn =>
+                    await FetchMsnWeatherAsync(lat, lon, cancellationToken),
+                _ => await FetchOpenMeteoWeatherAsync(lat, lon, cancellationToken)
+            };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -565,6 +573,8 @@ public sealed class WeatherService : IDisposable
 [JsonSerializable(typeof(WeatherGeocodingResult), TypeInfoPropertyName = "GeocodingResult")]
 [JsonSerializable(typeof(WeatherData), TypeInfoPropertyName = "OpenMeteoWeather")]
 [JsonSerializable(typeof(MsnWeatherResponse), TypeInfoPropertyName = "MsnWeather")]
+[JsonSerializable(typeof(MojiHour24Response), TypeInfoPropertyName = "MojiHour24")]
+[JsonSerializable(typeof(MojiMonthResponse), TypeInfoPropertyName = "MojiMonth")]
 [JsonSerializable(typeof(WeatherCacheState), TypeInfoPropertyName = "CacheState")]
 internal sealed partial class WeatherJsonContext : JsonSerializerContext
 {

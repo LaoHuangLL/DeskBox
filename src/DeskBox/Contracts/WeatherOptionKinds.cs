@@ -51,6 +51,17 @@ public static class WeatherOptionKinds
     public const string DataSourceMsn = "MSN";
     public const string DataSourceOpenMeteo = "OpenMeteo";
 
+    /// <summary>moji.com's public web site (tianqi.moji.com); keyless.</summary>
+    public const string DataSourceMoji = "Moji";
+
+    /// <summary>The data sources offered by the source combo.</summary>
+    public static readonly string[] DataSourceValues =
+    [
+        DataSourceMsn,
+        DataSourceOpenMeteo,
+        DataSourceMoji
+    ];
+
     public const int RefreshMinMinutes = 15;
     public const int RefreshMaxMinutes = 180;
     public const int DefaultRefreshIntervalMinutes = 60;
@@ -92,8 +103,12 @@ public static class WeatherOptionKinds
         ? style
         : DefaultIconStyle;
 
-    public static string NormalizeDataSource(string? source) =>
-        source == DataSourceOpenMeteo ? DataSourceOpenMeteo : DataSourceMsn;
+    public static string NormalizeDataSource(string? source) => source switch
+    {
+        DataSourceOpenMeteo => DataSourceOpenMeteo,
+        DataSourceMoji => DataSourceMoji,
+        _ => DataSourceMsn
+    };
 
     public static int NormalizeRefreshInterval(int minutes) =>
         Math.Clamp(minutes, RefreshMinMinutes, RefreshMaxMinutes);
