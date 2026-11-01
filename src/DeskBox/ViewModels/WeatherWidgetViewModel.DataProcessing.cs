@@ -412,7 +412,9 @@ public sealed partial class WeatherWidgetViewModel
     private void PopulateDailyForecast(WeatherDaily daily)
     {
         DailyForecast.Clear();
-        int count = Math.Min(daily.Time.Count, 7);
+        // Open-Meteo caps the daily product at 16 days; MSN only returns 7, and
+        // the loop below simply renders whatever arrived.
+        int count = Math.Min(daily.Time.Count, 16);
     
         // First pass: find the overall weekly min/max for the temperature range bar
         double weekMin = double.MaxValue, weekMax = double.MinValue;
@@ -457,6 +459,7 @@ public sealed partial class WeatherWidgetViewModel
             DailyForecast.Add(new WeatherDayViewModel
             {
                 DayLabel = dayLabel,
+                DateText = FormatShortDate(dateStr),
                 IconGlyph = WeatherCodeMapper.GetGlyph(wmoCode, isDay: true),
                 Icon = CreateIcon(wmoCode, isDay: true),
                 Description = WeatherCodeMapper.GetDescription(wmoCode, _localizationService),
@@ -503,6 +506,7 @@ public sealed partial class WeatherWidgetViewModel
             string timeStr = hourly.Time[idx];
             double temp = idx < hourly.Temperature.Count ? hourly.Temperature[idx] : 0;
             double precip = idx < hourly.PrecipitationProbability.Count ? hourly.PrecipitationProbability[idx] : 0;
+            double wind = idx < hourly.WindSpeed.Count ? hourly.WindSpeed[idx] : 0;
             int wmoCode = idx < hourly.WeatherCode.Count ? hourly.WeatherCode[idx] : 0;
 
             string hourLabel = FormatHourLabel(timeStr);
@@ -513,6 +517,8 @@ public sealed partial class WeatherWidgetViewModel
                 HourLabel = hourLabel,
                 TemperatureText = FormatTemperature(temp),
                 PrecipitationText = precip > 0 ? $"{(int)precip}%" : "",
+                WindText = wind > 0 ? FormatWindSpeed(wind) : string.Empty,
+                ConditionText = WeatherCodeMapper.GetDescription(wmoCode, _localizationService),
                 IconGlyph = WeatherCodeMapper.GetGlyph(wmoCode, isDaytime),
                 Icon = CreateIcon(wmoCode, isDaytime),
                 IsCurrentHour = i == 0,
@@ -608,6 +614,28 @@ public sealed partial class WeatherWidgetViewModel
         {
             return dateStr;
         }
+    }
+
+    /// <summary>
+    /// Formats the ISO date of a daily forecast row as a compact "MM/dd" badge.
+    /// Invariant culture keeps the badge on the Gregorian calendar for every
+    /// UI language (ar-SA would otherwise print Hijri dates next to a Gregorian
+    /// weekday label).
+    /// </summary>
+    private static string FormatShortDate(string dateStr)
+    {
+        if (DateTimeOffset.TryParse(
+                dateStr,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var dt))
+        {
+            return dt.ToString(
+                "MM/dd",
+                System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return string.Empty;
     }
 
     private string FormatTemperature(double celsius)

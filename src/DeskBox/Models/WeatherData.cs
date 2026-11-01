@@ -109,6 +109,10 @@ public sealed class WeatherHourly
 
     [JsonPropertyName("weather_code")]
     public List<int> WeatherCode { get; set; } = [];
+
+    /// <summary>10 m wind speed in km/h; empty when the source omits it.</summary>
+    [JsonPropertyName("wind_speed_10m")]
+    public List<double> WindSpeed { get; set; } = [];
 }
 
 /// <summary>

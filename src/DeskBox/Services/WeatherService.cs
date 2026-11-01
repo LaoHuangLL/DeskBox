@@ -382,10 +382,10 @@ public sealed class WeatherService : IDisposable
                $"?latitude={lat.ToString("F4", CultureInfo.InvariantCulture)}" +
                $"&longitude={lon.ToString("F4", CultureInfo.InvariantCulture)}" +
                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl,is_day" +
-               "&hourly=temperature_2m,precipitation_probability,weather_code" +
+               "&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m" +
                "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max" +
                "&timezone=auto" +
-               "&forecast_days=7" +
+               "&forecast_days=16" +
                "&wind_speed_unit=kmh" +
                "&temperature_unit=celsius" +
                "&precipitation_unit=mm";
@@ -529,6 +529,9 @@ public sealed class WeatherService : IDisposable
 
                 hourly.Temperature.Add(h.Temp);
                 hourly.PrecipitationProbability.Add(h.Precip);
+                // MSN reports 10 m wind speed in km/h, same unit the Open-Meteo
+                // request asks for, so both sources feed the hourly strip alike.
+                hourly.WindSpeed.Add(h.WindSpd);
 
                 int hourWmo = WeatherCodeMapper.MsnDescriptionOrIconToWmoCode(h.Cap, h.Icon);
                 hourly.WeatherCode.Add(hourWmo);

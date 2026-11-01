@@ -430,6 +430,64 @@ public sealed partial class WeatherWidgetViewModel
             OnPropertyChanged(nameof(HourlyCardWidth));
         }
 
+        UpdateBothForecastMode(newLayout, width, height);
+    }
+
+    /// <summary>
+    /// Decides whether the expanded layout can stack the hourly strip and the
+    /// multi-day list instead of swapping them behind the segmented control.
+    /// The strip alone needs about 100 px and three day rows about 90 px, on top
+    /// of the ~150 px the current-conditions block occupies, so the threshold
+    /// stays well above the Expanded upgrade size.
+    /// </summary>
+    internal static bool ShouldShowBothForecast(
+        string layoutMode,
+        double width,
+        double height,
+        double typographyScale)
+    {
+        if (!string.Equals(layoutMode, "Expanded", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        double delta = Math.Max(0, typographyScale - 1);
+        return width >= ExpandedBothMinimumWidth + (90 * delta) &&
+               height >= ExpandedBothMinimumHeight + (180 * delta);
+    }
+
+    internal const double ExpandedBothMinimumWidth = 320;
+    internal const double ExpandedBothMinimumHeight = 400;
+
+    private void UpdateBothForecastMode(string layoutMode, double width, double height)
+    {
+        bool showBoth = ShouldShowBothForecast(
+            layoutMode,
+            width,
+            height,
+            ResolveTypographyScale(TextSize, _systemTextScaleFactor));
+
+        // The stacked list gets whatever the strip leaves over, so it never
+        // pushes the current-conditions block out of the widget.
+        double weekMaxHeight = showBoth
+            ? Math.Clamp(height - ExpandedHourlyCardHeight - 170, 56, 260)
+            : 0;
+        if (Math.Abs(weekMaxHeight - ExpandedBothWeekMaxHeight) >= 0.5)
+        {
+            ExpandedBothWeekMaxHeight = weekMaxHeight;
+            OnPropertyChanged(nameof(ExpandedBothWeekMaxHeight));
+        }
+
+        if (showBoth == _showBothForecast)
+        {
+            return;
+        }
+
+        _showBothForecast = showBoth;
+        OnPropertyChanged(nameof(BothForecastVisibility));
+        OnPropertyChanged(nameof(ForecastVisibility));
+        OnPropertyChanged(nameof(WeekForecastVisibility));
+        OnPropertyChanged(nameof(ViewSwitchVisibility));
     }
 
     private WeatherLayoutPresentationState CaptureLayoutPresentationState()

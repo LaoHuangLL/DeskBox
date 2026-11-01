@@ -406,7 +406,8 @@ public partial class App
             surface.SurfaceWindText.StartsWith(
                 AotWeatherBaselineWindText,
                 StringComparison.Ordinal) &&
-            surface.HourlyItemsCount == 24 &&
+            surface.HourlyItemsCount == surface.HourlyViewModelCount &&
+            surface.HourlyViewModelCount > 0 &&
             surface.HourlyContainerRealized &&
             surface.HourlyTemplateTextProjected &&
             surface.FirstHourlyTemperatureText == AotWeatherBaselineTemperatureText &&
@@ -444,7 +445,8 @@ public partial class App
             surface.SurfaceWindText.StartsWith(
                 AotWeatherMutatedWindText,
                 StringComparison.Ordinal) &&
-            surface.DailyItemsCount == 7 &&
+            surface.DailyItemsCount == surface.DailyViewModelCount &&
+            surface.DailyViewModelCount > 0 &&
             surface.DailyContainerRealized &&
             surface.DailyTemplateTextProjected &&
             surface.FirstDailyMaxText == "75°F" &&

@@ -150,9 +150,9 @@ public sealed class WeatherWidgetViewModelTests
     }
 
     [Theory]
-    [InlineData(320, 360, 100)]
-    [InlineData(320, 320, 88)]
-    [InlineData(320, 300, 80)]
+    [InlineData(320, 360, 112)]
+    [InlineData(320, 320, 100)]
+    [InlineData(320, 300, 92)]
     public void ExpandedHourlyCardHeight_AdaptsToAvailableHeight(double width, double height, double expectedCardHeight)
     {
         WeatherWidgetViewModel viewModel = CreateViewModel();

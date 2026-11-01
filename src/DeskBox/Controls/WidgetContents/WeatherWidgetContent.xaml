@@ -37,9 +37,200 @@
         </Style>
 
         <local:BoolToVisibilityConverter x:Key="TrueVisibilityConverter" />
+        <local:StringToVisibilityConverter x:Key="StringVisibilityConverter" />
         <local:TempBarMarginConverter
             x:Key="TempBarMarginConverter"
             BarWidth="72" />
+
+        <!--
+            The hourly strip renders in two places (the day/hour tab and the
+            stacked section), so its card lives here once. Card width/height are
+            pulled from ExpandedLayout because the strip has to match the metrics
+            the view model computed for the current widget size.
+        -->
+        <DataTemplate x:Key="WeatherHourlyCardTemplate" x:DataType="viewModels:WeatherHourViewModel">
+            <Grid
+                Width="{Binding DataContext.HourlyCardWidth, ElementName=ExpandedLayout}"
+                Height="{Binding DataContext.ExpandedHourlyCardHeight, ElementName=ExpandedLayout}">
+                <Grid Margin="6,4,6,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="7" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        helpers:WidgetTextShadow.Cast="True"
+                        x:Name="HourlyHourText"
+                        Grid.Row="0"
+                        HorizontalAlignment="Center"
+                        FontSize="{x:Bind ForecastHourTextSize, Mode=OneWay}"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="{Binding HourLabel}" />
+                    <Image
+                        Grid.Row="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Width="{Binding DataContext.ForecastEmojiSize, ElementName=ExpandedLayout}"
+                        Height="{Binding DataContext.ForecastEmojiSize, ElementName=ExpandedLayout}"
+                        IsHitTestVisible="False"
+                        Source="{Binding Icon}"
+                        Stretch="Uniform" />
+                    <TextBlock
+                        helpers:WidgetTextShadow.Cast="True"
+                        x:Name="HourlyConditionText"
+                        Grid.Row="2"
+                        HorizontalAlignment="Center"
+                        FontSize="{x:Bind ForecastHourTextSize, Mode=OneWay}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        MaxLines="1"
+                        Text="{Binding ConditionText}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        helpers:WidgetTextShadow.Cast="True"
+                        x:Name="HourlyTemperatureText"
+                        Grid.Row="3"
+                        HorizontalAlignment="Center"
+                        FontSize="{Binding DataContext.ForecastTempTextSize, ElementName=ExpandedLayout}"
+                        FontWeight="SemiBold"
+                        Text="{Binding TemperatureText}" />
+                    <TextBlock
+                        helpers:WidgetTextShadow.Cast="True"
+                        x:Name="HourlyWindText"
+                        Grid.Row="4"
+                        HorizontalAlignment="Center"
+                        FontSize="{x:Bind ForecastHourTextSize, Mode=OneWay}"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="{Binding WindText}"
+                        Visibility="{Binding WindText, Converter={StaticResource StringVisibilityConverter}}" />
+                    <TextBlock
+                        helpers:WidgetTextShadow.Cast="True"
+                        x:Name="HourlyPrecipText"
+                        Grid.Row="5"
+                        HorizontalAlignment="Center"
+                        FontSize="{x:Bind ForecastHourTextSize, Mode=OneWay}"
+                        Foreground="{StaticResource WeatherAccentBrush}"
+                        Text="{Binding PrecipitationText}"
+                        Visibility="{Binding DataContext.ExpandedHourlyPrecipVisibility, ElementName=ExpandedLayout}" />
+                    <Border
+                        Grid.Row="6"
+                        Width="18"
+                        Height="2"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        CornerRadius="1"
+                        Visibility="{Binding IsCurrentHour, Converter={StaticResource TrueVisibilityConverter}}" />
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <!--
+            A day row: label + calendar date, condition icon, condition text with
+            the rain chance underneath, then the week-relative temperature bar and
+            the two readings. The description used to live in the tooltip only.
+        -->
+        <DataTemplate x:Key="WeatherDailyRowTemplate">
+            <Border
+                Padding="4,5"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                ToolTipService.ToolTip="{Binding Description}">
+                <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" MinWidth="56" />
+                        <ColumnDefinition Width="Auto" MinWidth="28" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="72" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel
+                        Grid.Column="0"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            helpers:WidgetTextShadow.Cast="True"
+                            x:Name="DailyDayText"
+                            FontSize="{Binding DataContext.WeekDayLabelTextSize, ElementName=ExpandedLayout}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{Binding DayLabel}" />
+                        <TextBlock
+                            helpers:WidgetTextShadow.Cast="True"
+                            x:Name="DailyDateText"
+                            FontSize="{Binding DataContext.CaptionTextSize, ElementName=ExpandedLayout}"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Opacity="0.85"
+                            Text="{Binding DateText}" />
+                    </StackPanel>
+                    <Image
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Width="{Binding DataContext.WeekEmojiSize, ElementName=ExpandedLayout}"
+                        Height="{Binding DataContext.WeekEmojiSize, ElementName=ExpandedLayout}"
+                        IsHitTestVisible="False"
+                        Source="{Binding Icon}"
+                        Stretch="Uniform" />
+                    <StackPanel
+                        Grid.Column="2"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            helpers:WidgetTextShadow.Cast="True"
+                            x:Name="DailyDescriptionText"
+                            FontSize="{Binding DataContext.CaptionTextSize, ElementName=ExpandedLayout}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{Binding Description}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                        <TextBlock
+                            helpers:WidgetTextShadow.Cast="True"
+                            x:Name="DailyPrecipText"
+                            FontSize="{Binding DataContext.CaptionTextSize, ElementName=ExpandedLayout}"
+                            Foreground="{StaticResource WeatherAccentBrush}"
+                            Text="{Binding PrecipitationText}"
+                            Visibility="{Binding PrecipitationText, Converter={StaticResource StringVisibilityConverter}}" />
+                    </StackPanel>
+                    <Grid
+                        Grid.Column="3"
+                        Width="72"
+                        Height="4"
+                        VerticalAlignment="Center">
+                        <Border
+                            Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            CornerRadius="2"
+                            Opacity="0.55" />
+                        <Border
+                            Margin="{Binding Converter={StaticResource TempBarMarginConverter}}"
+                            CornerRadius="2">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Offset="0" Color="#FF6EA9D7" />
+                                    <GradientStop Offset="1" Color="#FFF1B36B" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                    </Grid>
+                    <TextBlock
+                        helpers:WidgetTextShadow.Cast="True"
+                        x:Name="DailyMaxText"
+                        Grid.Column="4"
+                        VerticalAlignment="Center"
+                        FontSize="{Binding DataContext.WeekTempMaxSize, ElementName=ExpandedLayout}"
+                        FontWeight="SemiBold"
+                        Text="{Binding TempMaxText}" />
+                    <TextBlock
+                        helpers:WidgetTextShadow.Cast="True"
+                        x:Name="DailyMinText"
+                        Grid.Column="5"
+                        VerticalAlignment="Center"
+                        FontSize="{Binding DataContext.WeekTempMinSize, ElementName=ExpandedLayout}"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="{Binding TempMinText}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
@@ -695,13 +886,19 @@
                 x:Name="ExpandedHourlyForecastSection"
                 Grid.Row="5"
                 Visibility="{Binding ForecastVisibility}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
                 <Border
+                    Grid.Row="0"
                     Height="1"
                     VerticalAlignment="Top"
                     Background="{ThemeResource DividerStrokeColorDefaultBrush}"
                     Visibility="{x:Bind ViewModel.ExpandedHourlyDividerVisibility, Mode=OneWay}" />
                 <ScrollViewer
                     x:Name="ExpandedHourlyScroll"
+                    Grid.Row="0"
                     Height="{Binding ExpandedHourlyCardHeight}"
                     Margin="0,6,0,0"
                     HorizontalScrollBarVisibility="Hidden"
@@ -721,72 +918,37 @@
                         x:Name="ExpandedHourlyItems"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
+                        ItemTemplate="{StaticResource WeatherHourlyCardTemplate}"
                         ItemsSource="{Binding HourlyForecastItemsSource}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel Orientation="Horizontal" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="viewModels:WeatherHourViewModel">
-                                <Grid
-                                    Width="{Binding DataContext.HourlyCardWidth, ElementName=ExpandedLayout}"
-                                    Height="{Binding DataContext.ExpandedHourlyCardHeight, ElementName=ExpandedLayout}">
-                                    <Grid Margin="6,5,6,0">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="7" />
-                                        </Grid.RowDefinitions>
-                                        <TextBlock
-                                            helpers:WidgetTextShadow.Cast="True"
-                                            x:Name="HourlyHourText"
-                                            Grid.Row="0"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{x:Bind ForecastHourTextSize, Mode=OneWay}"
-                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                            Text="{Binding HourLabel}" />
-                                        <Image
-                                            Grid.Row="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Width="{Binding DataContext.ForecastEmojiSize, ElementName=ExpandedLayout}"
-                                            Height="{Binding DataContext.ForecastEmojiSize, ElementName=ExpandedLayout}"
-                                            IsHitTestVisible="False"
-                                            Source="{Binding Icon}"
-                                            Stretch="Uniform" />
-                                        <TextBlock
-                                            helpers:WidgetTextShadow.Cast="True"
-                                            x:Name="HourlyTemperatureText"
-                                            Grid.Row="2"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding DataContext.ForecastTempTextSize, ElementName=ExpandedLayout}"
-                                            FontWeight="SemiBold"
-                                            Text="{Binding TemperatureText}" />
-                                        <TextBlock
-                                            helpers:WidgetTextShadow.Cast="True"
-                                            Grid.Row="3"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{x:Bind ForecastHourTextSize, Mode=OneWay}"
-                                            Foreground="{StaticResource WeatherAccentBrush}"
-                                            Text="{Binding PrecipitationText}"
-                                            Visibility="{Binding DataContext.ExpandedHourlyPrecipVisibility, ElementName=ExpandedLayout}" />
-                                        <Border
-                                            Grid.Row="4"
-                                            Width="18"
-                                            Height="2"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Bottom"
-                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                            CornerRadius="1"
-                                            Visibility="{Binding IsCurrentHour, Converter={StaticResource TrueVisibilityConverter}}" />
-                                    </Grid>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                </ScrollViewer>
+                <ScrollViewer
+                    x:Name="ExpandedBothWeekScroll"
+                    Grid.Row="1"
+                    Margin="0,2,0,0"
+                    MaxHeight="{Binding ExpandedBothWeekMaxHeight}"
+                    HorizontalScrollBarVisibility="Disabled"
+                    HorizontalScrollMode="Disabled"
+                    IsHorizontalRailEnabled="False"
+                    IsVerticalRailEnabled="True"
+                    MinHeight="48"
+                    PointerCaptureLost="ForecastScroll_PointerCaptureLost"
+                    PointerMoved="ForecastScroll_PointerMoved"
+                    PointerPressed="ForecastScroll_PointerPressed"
+                    PointerReleased="ForecastScroll_PointerReleased"
+                    PointerWheelChanged="WeekScroll_PointerWheelChanged"
+                    VerticalScrollBarVisibility="Hidden"
+                    VerticalScrollMode="Enabled"
+                    Visibility="{Binding BothForecastVisibility}">
+                    <ItemsControl
+                        x:Name="ExpandedBothDailyItems"
+                        ItemTemplate="{StaticResource WeatherDailyRowTemplate}"
+                        ItemsSource="{Binding DailyForecastItemsSource}" />
                 </ScrollViewer>
             </Grid>
 
@@ -812,82 +974,11 @@
                     VerticalScrollMode="Enabled">
                     <ItemsControl
                         x:Name="ExpandedDailyItems"
-                        ItemsSource="{Binding DailyForecastItemsSource}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border
-                                    Padding="4,5"
-                                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                    BorderThickness="0,0,0,1"
-                                    ToolTipService.ToolTip="{Binding Description}">
-                                    <Grid ColumnSpacing="6">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" MinWidth="56" />
-                                            <ColumnDefinition Width="Auto" MinWidth="28" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="72" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            helpers:WidgetTextShadow.Cast="True"
-                                            x:Name="DailyDayText"
-                                            Grid.Column="0"
-                                            VerticalAlignment="Center"
-                                            FontSize="{Binding DataContext.WeekDayLabelTextSize, ElementName=ExpandedLayout}"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            Text="{Binding DayLabel}" />
-                                        <Image
-                                            Grid.Column="1"
-                                            VerticalAlignment="Center"
-                                            Width="{Binding DataContext.WeekEmojiSize, ElementName=ExpandedLayout}"
-                                            Height="{Binding DataContext.WeekEmojiSize, ElementName=ExpandedLayout}"
-                                            IsHitTestVisible="False"
-                                            Source="{Binding Icon}"
-                                            Stretch="Uniform" />
-                                        <Grid
-                                            Grid.Column="3"
-                                            Width="72"
-                                            Height="4"
-                                            VerticalAlignment="Center">
-                                            <Border
-                                                Background="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                                CornerRadius="2"
-                                                Opacity="0.55" />
-                                            <Border
-                                                Margin="{Binding Converter={StaticResource TempBarMarginConverter}}"
-                                                CornerRadius="2">
-                                                <Border.Background>
-                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                        <GradientStop Offset="0" Color="#FF6EA9D7" />
-                                                        <GradientStop Offset="1" Color="#FFF1B36B" />
-                                                    </LinearGradientBrush>
-                                                </Border.Background>
-                                            </Border>
-                                        </Grid>
-                                        <TextBlock
-                                            helpers:WidgetTextShadow.Cast="True"
-                                            x:Name="DailyMaxText"
-                                            Grid.Column="4"
-                                            VerticalAlignment="Center"
-                                            FontSize="{Binding DataContext.WeekTempMaxSize, ElementName=ExpandedLayout}"
-                                            FontWeight="SemiBold"
-                                            Text="{Binding TempMaxText}" />
-                                        <TextBlock
-                                            helpers:WidgetTextShadow.Cast="True"
-                                            x:Name="DailyMinText"
-                                            Grid.Column="5"
-                                            VerticalAlignment="Center"
-                                            FontSize="{Binding DataContext.WeekTempMinSize, ElementName=ExpandedLayout}"
-                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                            Text="{Binding TempMinText}" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        ItemTemplate="{StaticResource WeatherDailyRowTemplate}"
+                        ItemsSource="{Binding DailyForecastItemsSource}" />
                 </ScrollViewer>
             </Border>
+
         </Grid>
 
         <Border

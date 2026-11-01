@@ -521,3 +521,19 @@ internal sealed partial class BoolToVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language)
         => throw new NotSupportedException();
 }
+
+/// <summary>
+/// Hides the target when the bound text is empty. The hourly strip uses it so a
+/// row without a wind reading (MSN may omit it) does not leave a blank line.
+/// </summary>
+internal sealed partial class StringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool hasText = value is string text && !string.IsNullOrWhiteSpace(text);
+        return hasText ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => throw new NotSupportedException();
+}

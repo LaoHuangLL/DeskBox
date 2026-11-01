@@ -6,6 +6,7 @@ namespace DeskBox.ViewModels;
 [WinRT.GeneratedBindableCustomProperty([
     nameof(ApparentTemperatureText),
     nameof(BodyTextSize),
+    nameof(BothForecastVisibility),
     nameof(CaptionTextSize),
     nameof(CompactLayoutVisibility),
     nameof(CurrentDescription),
@@ -19,6 +20,7 @@ namespace DeskBox.ViewModels;
     nameof(ErrorTitle),
     nameof(ErrorVisibility),
     nameof(ExpandedHourlyCardHeight),
+    nameof(ExpandedBothWeekMaxHeight),
     nameof(ExpandedHourlyDividerVisibility),
     nameof(ExpandedHourlyPrecipVisibility),
     nameof(ExpandedLayoutVisibility),
@@ -86,6 +88,7 @@ public sealed partial class WeatherWidgetViewModel
 }
 
 [WinRT.GeneratedBindableCustomProperty([
+    nameof(DateText),
     nameof(DayLabel),
     nameof(Description),
     nameof(Icon),
@@ -101,13 +104,15 @@ public sealed partial class WeatherDayViewModel
 }
 
 [WinRT.GeneratedBindableCustomProperty([
+    nameof(ConditionText),
     nameof(ForecastHourTextSize),
     nameof(HourLabel),
     nameof(Icon),
     nameof(IconGlyph),
     nameof(IsCurrentHour),
     nameof(PrecipitationText),
-    nameof(TemperatureText)
+    nameof(TemperatureText),
+    nameof(WindText)
 ], [])]
 public sealed partial class WeatherHourViewModel
 {

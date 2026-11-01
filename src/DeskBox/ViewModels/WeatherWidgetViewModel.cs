@@ -66,6 +66,10 @@ public sealed partial class WeatherWidgetViewModel : ObservableObject, IDisposab
     private string _skin = SettingsService.WeatherSkinStandard;
     private string _iconStyle = SettingsService.WeatherIconStyleFluent;
     private bool _showForecast = true;
+
+    // Set while the widget is tall enough to stack the hourly strip above the
+    // multi-day list instead of making the segmented control swap between them.
+    private bool _showBothForecast = false;
     private bool _showSunrise = true;
     private bool _showUvIndex = true;
     private bool _showPrecipitation = true;
@@ -385,6 +389,7 @@ public sealed partial class WeatherWidgetViewModel : ObservableObject, IDisposab
                 UpdateViewSwitchButton();
                 OnPropertyChanged(nameof(ForecastVisibility));
                 OnPropertyChanged(nameof(WeekForecastVisibility));
+                OnPropertyChanged(nameof(BothForecastVisibility));
             }
         }
     }
@@ -479,8 +484,32 @@ public sealed partial class WeatherWidgetViewModel : ObservableObject, IDisposab
     public Color RichBackdropBottomColor { get; private set; } = Color.FromArgb(0xFF, 0x3C, 0x76, 0x94);
 
     // Visibility helpers for settings-driven content
-    public Visibility ForecastVisibility => _showForecast && !_isWeekView ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility WeekForecastVisibility => _showForecast && _isWeekView ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ForecastVisibility =>
+        _showForecast && !_isWeekView
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    public Visibility WeekForecastVisibility =>
+        _showForecast && _isWeekView
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    /// <summary>
+    /// Tall widgets stack the multi-day list underneath the hourly strip, which
+    /// is what the phone weather apps do; shorter widgets keep the segmented
+    /// today/week switch (the two layouts do not fit at 260 px content height).
+    /// The stacked list lives inside the day section so the segmented day view
+    /// stays the default presentation.
+    /// </summary>
+    public Visibility BothForecastVisibility =>
+        _showForecast && _showBothForecast && !_isWeekView
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    /// <summary>
+    /// Cap for the stacked multi-day list: whatever the content height leaves
+    /// after the metrics block and the hourly strip.
+    /// </summary>
+    public double ExpandedBothWeekMaxHeight { get; private set; } = 0;
     public Visibility SunriseVisibility => _showSunrise && _layoutMode == "Expanded" ? Visibility.Visible : Visibility.Collapsed;
     public Visibility UvIndexVisibility => _showUvIndex ? Visibility.Visible : Visibility.Collapsed;
     public Visibility PrecipitationVisibility => _showPrecipitation ? Visibility.Visible : Visibility.Collapsed;
@@ -501,7 +530,10 @@ public sealed partial class WeatherWidgetViewModel : ObservableObject, IDisposab
         })
             ? Visibility.Visible
             : Visibility.Collapsed;
-    public Visibility ViewSwitchVisibility => _showForecast ? Visibility.Visible : Visibility.Collapsed;
+    // The segmented switch stays available: the stacked list only folds in on
+    // the day view, so switching to the week view still has to work.
+    public Visibility ViewSwitchVisibility =>
+        _showForecast ? Visibility.Visible : Visibility.Collapsed;
     public Visibility MiniLayoutVisibility => _layoutMode == "Mini" ? Visibility.Visible : Visibility.Collapsed;
     public Visibility MiniHeaderVisibility =>
         _lastAvailableHeight >= MiniHeaderMinimumHeight
@@ -554,10 +586,10 @@ public sealed partial class WeatherWidgetViewModel : ObservableObject, IDisposab
         get
         {
             double baseHeight = _lastAvailableHeight >= 360
-                ? 100
+                ? 112
                 : _lastAvailableHeight >= 310
-                    ? 88
-                    : 80;
+                    ? 100
+                    : 92;
             return Math.Ceiling(
                 baseHeight + (52 * (EffectiveTypographyScale - 1)));
         }
@@ -862,6 +894,7 @@ public sealed partial class WeatherWidgetViewModel : ObservableObject, IDisposab
 
         OnPropertyChanged(nameof(ForecastVisibility));
         OnPropertyChanged(nameof(WeekForecastVisibility));
+        OnPropertyChanged(nameof(BothForecastVisibility));
         OnPropertyChanged(nameof(SunriseVisibility));
         OnPropertyChanged(nameof(UvIndexVisibility));
         OnPropertyChanged(nameof(PrecipitationVisibility));
@@ -988,6 +1021,10 @@ public sealed partial class WeatherWidgetViewModel : ObservableObject, IDisposab
 public sealed partial class WeatherDayViewModel : ObservableObject
 {
     public string DayLabel { get; set; } = string.Empty;
+
+    /// <summary>Calendar date badge shown under the weekday label (MM/dd).</summary>
+    public string DateText { get; set; } = string.Empty;
+
     public string IconGlyph { get; set; } = "\uE706";
     public ImageSource? Icon { get; set; }
 
@@ -1013,6 +1050,13 @@ public sealed partial class WeatherHourViewModel : ObservableObject
     public string HourLabel { get; set; } = string.Empty;
     public string TemperatureText { get; set; } = string.Empty;
     public string PrecipitationText { get; set; } = string.Empty;
+
+    /// <summary>Hourly wind speed in the user's unit (empty when unavailable).</summary>
+    public string WindText { get; set; } = string.Empty;
+
+    /// <summary>Hourly condition text ("Cloudy", "Light rain"…) shown under the icon.</summary>
+    public string ConditionText { get; set; } = string.Empty;
+
     public string IconGlyph { get; set; } = "\uE706";
     public ImageSource? Icon { get; set; }
 
